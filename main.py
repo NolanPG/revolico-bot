@@ -1,18 +1,25 @@
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 import aiohttp
 import asyncio
+import json
 import os
 
 # Environment vars
 
-API_ID = os.getenv('API_ID')
-API_HASH = os.getenv('API_HASH')
-TOKEN = os.getenv('TOKEN')
-NAME = os.getenv('NAME')
+# API_ID = os.getenv('API_ID')
+# API_HASH = os.getenv('API_HASH')
+# TOKEN = os.getenv('TOKEN')
+# NAME = os.getenv('NAME')
+
+API_ID = 4482188
+API_HASH = '0712c4aacf5e779ed9f55421c1813aed'
+TOKEN = '5491966245:AAGX9tDKsxc-oIMRmugalfMvbuBhIRpYVfs'
+NAME = 'Revolicobot'
 
 
 # Functions
+
 async def do_search(keyword, page: 1):
 
     qjson = [
@@ -40,12 +47,15 @@ async def do_search(keyword, page: 1):
 
             list_object = rjson[0]["data"]["adsPerPage"]["edges"]
             ad_list = []
+            thumb_list = {}
 
             for ad in list_object:
                 ad_list.append(ad["node"]["id"])
+            
+            for ad in list_object:
+                thumb_list[ad["node"]["id"]] = f"{ad['node']['price']} - {ad['node']['title']}" if ad['node']['price'] else f"No especificado - {ad['node']['title']}"
 
-            return ad_list
-
+            return ad_list, thumb_list
 
 async def do_request(ad_id):
     qjson = [
@@ -67,14 +77,15 @@ async def do_request(ad_id):
                 ad_img_obj = ad_object["images"]["edges"]
                 ad_id = ad_object["id"]
 
-                ad_title = ad_object["title"] if ad_object["title"] != None else "No especificado"
-                ad_desc = ad_object["description"] if ad_object["description"] != None else "No especificado"
-                ad_price = f"{ad_object['price']} {ad_object['currency']}" if ad_object[
-                    "price"] != None or ad_object["currency"] != None else "No especificado"
-                ad_has_img = ad_object["imagesCount"] != 0 if ad_object["imagesCount"] != None else "No especificado"
-                ad_prov = ad_object["province"]["name"] if ad_object["province"] != None else "No especificado"
-                ad_mun = ad_object["municipality"]["name"] if ad_object["municipality"] != None else "No especificado"
+                ad_title = ad_object["title"] if ad_object["title"] else "No especificado"
+                ad_desc = ad_object["description"] if ad_object["description"] else "No especificado"
+                ad_price = f"{ad_object['price']} {ad_object['currency']}" if ad_object["price"] or ad_object["currency"] else "No especificado"
+                ad_has_img = ad_object["imagesCount"] != 0 if ad_object["imagesCount"] else "No especificado"
+                ad_prov = ad_object["province"]["name"] if ad_object["province"] else "No especificado"
+                ad_mun = ad_object["municipality"]["name"] if ad_object["municipality"] else "No especificado"
                 ad_link = f'https://www.revolico.com{ad_object["permalink"]}'
+                ad_contact = ad_object["phone"] if ad_object["phone"] else "No especificado"
+                ad_thumb = f'{ad_price} - {ad_title}'
 
                 if ad_has_img:
                     ad_img_list = []
@@ -85,9 +96,17 @@ async def do_request(ad_id):
                     ad_img_list = None
                     ad_img = "No hay fotos"
 
-                ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\n{ad_img}"""
+                ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
 
-                ad_thumb = f'{ad_price} - {ad_title}'
+                if ad_has_img and len(ad_data) > 1024:
+                    desc_len = 1024 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}")
+                    ad_desc = ad_desc[:desc_len]
+                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}"""
+
+                elif not ad_has_img and len(ad_data) > 4096:
+                    desc_len = 4096 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}")
+                    ad_desc = ad_desc[:desc_len]
+                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
 
             return ad_data, ad_thumb, ad_img_list, ad_link
 
@@ -96,6 +115,7 @@ async def do_request(ad_id):
 
 
 # Bot behavior
+
 bot = Client(name=NAME,  api_id=API_ID, api_hash=API_HASH, bot_token=TOKEN)
 
 
@@ -111,24 +131,27 @@ async def help_bot(client, message):
 
 @bot.on_message(filters=filters.command('search'))
 async def search(client, message):
-    request = message.text.replace('/search ', '')
-    ad_search = await do_search(keyword=request, page=1)
-    buttons = []
-
-    for id in ad_search:
-        ad_info, ad_thumb, ad_imgs, url = await do_request(id)
-        if ad_info and ad_thumb != 0:
-            buttons.append([InlineKeyboardButton(
-                text=str(ad_thumb), callback_data=str(id))])
-
-    buttons.append([InlineKeyboardButton(text='Next', callback_data='Next2')])
-
-    print(buttons)
-
-    if len(buttons) > 1:
-        await bot.send_message(chat_id=message.chat.id, text=f'Resultados para "{request}"', reply_markup=InlineKeyboardMarkup(buttons))
+    if message.text == '/search':
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text="Para utilizar esta función debe ingresar algún criterio de búsqueda"
+        )
     else:
-        await bot.send_message(chat_id=message.chat.id, text="Ningún anuncio encontrado")
+        request = message.text.replace('/search ' or '/search', '')
+        ad_search, ad_thumbs = await do_search(keyword=request, page=1)
+        buttons = []
+
+        for id in ad_search:
+            if ad_thumbs[id]:
+                buttons.append([InlineKeyboardButton(
+                    text=str(ad_thumbs[id]), callback_data=str(id))])
+
+        buttons.append([InlineKeyboardButton(text='Next', callback_data='Next2')])
+
+        if len(buttons) > 1:
+            await bot.send_message(chat_id=message.chat.id, text=f'Resultados para "{request}"', reply_markup=InlineKeyboardMarkup(buttons))
+        else:
+            await bot.send_message(chat_id=message.chat.id, text="Ningún anuncio encontrado")
 
 
 @bot.on_callback_query()
@@ -141,14 +164,13 @@ async def answer(client, callback_query):
         back_page = page - 1
         request = callback_query.message.text.replace(
             'Resultados para ', '').replace('"', '')
-        ad_search = await do_search(keyword=request, page=page)
+        ad_search, ad_thumbs = await do_search(keyword=request, page=page)
         new_buttons = []
 
         for id in ad_search:
-            ad_info, ad_thumb, imgs, url = await do_request(id)
-            if ad_info and ad_thumb != 0:
+            if ad_thumbs[id]:
                 new_buttons.append([InlineKeyboardButton(
-                    text=str(ad_thumb), callback_data=str(id))])
+                    text=str(ad_thumbs[id]), callback_data=str(id))])
 
         if page >= 2:
             new_buttons.append([InlineKeyboardButton(text='Back', callback_data=f'Next{back_page}'), InlineKeyboardButton(
@@ -193,7 +215,8 @@ async def answer(client, callback_query):
                 chat_id=callback_query.message.chat.id,
                 photo=imgs[0],
                 caption=msg,
-                reply_markup=InlineKeyboardMarkup(answer_button)
+                reply_markup=InlineKeyboardMarkup(answer_button),
+                parse_mode=enums.ParseMode.MARKDOWN
             )
 
         else:
@@ -202,7 +225,8 @@ async def answer(client, callback_query):
             await bot.send_message(
                 text=msg,
                 chat_id=callback_query.message.chat.id,
-                reply_markup=InlineKeyboardMarkup(answer_button)
+                reply_markup=InlineKeyboardMarkup(answer_button),
+                parse_mode=enums.ParseMode.MARKDOWN
             )
 
 
