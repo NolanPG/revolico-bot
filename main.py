@@ -133,19 +133,20 @@ async def search(client, message):
             text="Para utilizar esta función debe ingresar algún criterio de búsqueda"
         )
     else:
-        request = message.text.replace('/search ' or '/search', '')
+        request = message.text.replace('/search ', '')
         ad_search, ad_thumbs = await do_search(keyword=request, page=1)
         buttons = []
-
+        print(1)
         for id in ad_search:
             if ad_thumbs[id]:
                 buttons.append([InlineKeyboardButton(
                     text=str(ad_thumbs[id]), callback_data=str(id))])
 
         buttons.append([InlineKeyboardButton(text='Next', callback_data='Next2')])
-
+        print(2)
         if len(buttons) > 1:
             await bot.send_message(chat_id=message.chat.id, text=f'Resultados para "{request}"', reply_markup=InlineKeyboardMarkup(buttons))
+            print(3)
         else:
             await bot.send_message(chat_id=message.chat.id, text="Ningún anuncio encontrado")
 
