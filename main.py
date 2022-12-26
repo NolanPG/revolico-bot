@@ -5,17 +5,13 @@ import asyncio
 import json
 import os
 
+
 # Environment vars
 
-# API_ID = os.getenv('API_ID')
-# API_HASH = os.getenv('API_HASH')
-# TOKEN = os.getenv('TOKEN')
-# NAME = os.getenv('NAME')
-
-API_ID = 4482188
-API_HASH = '0712c4aacf5e779ed9f55421c1813aed'
-TOKEN = '5491966245:AAGX9tDKsxc-oIMRmugalfMvbuBhIRpYVfs'
-NAME = 'Revolicobot'
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
+TOKEN = os.getenv('TOKEN')
+NAME = os.getenv('NAME')
 
 
 # Functions
