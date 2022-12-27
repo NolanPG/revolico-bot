@@ -14,6 +14,10 @@ API_HASH = os.getenv('API_HASH')
 TOKEN = os.getenv('TOKEN')
 NAME = os.getenv('NAME')
 
+API_ID = 4482188
+API_HASH = '0712c4aacf5e779ed9f55421c1813aed'
+TOKEN = '5066347106:AAE8lwIspdpOhH4iTFwzk80qBN_FRcvcZjo'
+NAME = 'Revolicobot'
 
 # Functions
 
@@ -50,7 +54,11 @@ async def do_search(keyword, page: 1):
                 ad_list.append(ad["node"]["id"])
             
             for ad in list_object:
-                thumb_list[ad["node"]["id"]] = f"{ad['node']['price']} - {ad['node']['title']}" if ad['node']['price'] else f"No especificado - {ad['node']['title']}"
+                ad_has_img = ad["node"]["imagesCount"] != 0 and ad["node"]["imagesCount"] != None
+                if ad_has_img:
+                    thumb_list[ad["node"]["id"]] = f"🖼 {ad['node']['price']} - {ad['node']['title']}" if ad['node']['price'] else f"🖼 No especificado - {ad['node']['title']}"
+                else:
+                    thumb_list[ad["node"]["id"]] = f"{ad['node']['price']} - {ad['node']['title']}" if ad['node']['price'] else f"No especificado - {ad['node']['title']}"
 
             return ad_list, thumb_list
 
@@ -76,13 +84,13 @@ async def do_request(ad_id):
 
                 ad_title = ad_object["title"] if ad_object["title"] else "No especificado"
                 ad_desc = ad_object["description"] if ad_object["description"] else "No especificado"
-                ad_price = f"{ad_object['price']} {ad_object['currency']}" if ad_object["price"] or ad_object["currency"] else "No especificado"
-                ad_has_img = ad_object["imagesCount"] != 0 if ad_object["imagesCount"] else "No especificado"
+                ad_price = f"**{ad_object['price']} {ad_object['currency']}**" if ad_object["price"] or ad_object["currency"] else "No especificado"
+                ad_has_img = ad_object["imagesCount"] != 0 and ad_object["imagesCount"] != None
                 ad_prov = ad_object["province"]["name"] if ad_object["province"] else "No especificado"
                 ad_mun = ad_object["municipality"]["name"] if ad_object["municipality"] else "No especificado"
                 ad_link = f'https://www.revolico.com{ad_object["permalink"]}'
-                ad_contact = ad_object["phone"] if ad_object["phone"] else "No especificado"
-                ad_thumb = f'{ad_price} - {ad_title}'
+                ad_contact = f'`{ad_object["phone"]}`' if ad_object["phone"] else "No especificado"
+
 
                 if ad_has_img:
                     ad_img_list = []
@@ -93,19 +101,19 @@ async def do_request(ad_id):
                     ad_img_list = None
                     ad_img = "No hay fotos"
 
-                ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
+                ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
 
                 if ad_has_img and len(ad_data) > 1024:
-                    desc_len = 1024 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}")
+                    desc_len = 1024 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}")
                     ad_desc = ad_desc[:desc_len]
-                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}"""
+                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}"""
 
                 elif not ad_has_img and len(ad_data) > 4096:
-                    desc_len = 4096 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}")
+                    desc_len = 4096 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}")
                     ad_desc = ad_desc[:desc_len]
-                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: **{ad_price}**\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
+                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
 
-            return ad_data, ad_thumb, ad_img_list, ad_link
+            return ad_data, ad_img_list, ad_link
 
     except aiohttp.client_exceptions.ContentTypeError:
         return 0, 0
@@ -185,7 +193,7 @@ async def answer(client, callback_query):
     elif callback_query.data.startswith('id:'):
         ad_id = callback_query.data.replace('id:', '')
         ad_id = int(ad_id)
-        msg, thumb, imgs, url = await do_request(ad_id=ad_id)
+        msg, imgs, url = await do_request(ad_id=ad_id)
         input_img = []
 
         for urls in imgs:
@@ -194,10 +202,10 @@ async def answer(client, callback_query):
         await bot.send_media_group(
             chat_id=callback_query.message.chat.id,
             media=input_img
-        )
+        )   
 
     else:
-        msg, thumb, imgs, url = await do_request(ad_id=int(callback_query.data))
+        msg, imgs, url = await do_request(ad_id=int(callback_query.data))
 
         if imgs:
             if len(imgs) == 1:
@@ -225,6 +233,8 @@ async def answer(client, callback_query):
                 reply_markup=InlineKeyboardMarkup(answer_button),
                 parse_mode=enums.ParseMode.MARKDOWN
             )
+    
+    await bot.answer_callback_query(callback_query_id=callback_query.id)
 
 
 bot.run()
