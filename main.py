@@ -1,5 +1,6 @@
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from pyrogram import Client, filters, enums
+from telegraph.aio import Telegraph
 import aiohttp
 import asyncio
 import uvloop
@@ -13,9 +14,24 @@ API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
 TOKEN = os.getenv('TOKEN')
 NAME = os.getenv('NAME')
+URL = os.getenv('URL')
 
 
 # Functions
+
+async def do_tele(title, content):
+    telegraph = Telegraph()
+    await telegraph.create_account(short_name="Revolico_searchbot")
+
+    response = await telegraph.create_page(
+        title=title,
+        html_content=content,
+        author_name=NAME,
+        author_url=URL
+    )
+
+    return response['url']
+
 
 async def do_search(keyword, page: 1):
 
@@ -101,13 +117,21 @@ async def do_request(ad_id):
 
                 if ad_has_img and len(ad_data) > 1024:
                     desc_len = 1024 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}")
-                    ad_desc = ad_desc[:desc_len]
-                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}"""
+                    short_ad_desc = ad_desc[:desc_len]
+                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {short_ad_desc}...[ver más]({ad_link})\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}"""
+                    raw_tele_ad_data = ad_data.replace(f"Descripción: {short_ad_desc}...[ver más]", f"Descripción: {ad_desc}").replace("\n", "<br>")
+                    tele_ad_data = f'<p>{raw_tele_ad_data}</p>'
+                    response = await do_tele(title=ad_title, content=tele_ad_data)
+                    ad_data = ad_data.replace(f"{ad_link}", f"{response}")
 
                 elif not ad_has_img and len(ad_data) > 4096:
                     desc_len = 4096 - len(f"Título del anuncio: {ad_title}\nDescripción: ...ver más\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}")
-                    ad_desc = ad_desc[:desc_len]
-                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {ad_desc}...[ver más]({ad_link})\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
+                    short_ad_desc = ad_desc[:desc_len]
+                    ad_data = f"""Título del anuncio: {ad_title}\nDescripción: {short_ad_desc}...[ver más]({ad_link})\nPrecio: {ad_price}\nProvincia: {ad_prov}\nMunicipio: {ad_mun}\nContacto: {ad_contact}\n{ad_img}"""
+                    raw_tele_ad_data = ad_data.replace(f"Descripción: {short_ad_desc}...[ver más]", f"Descripción: {ad_desc}").replace("\n", "<br>")
+                    tele_ad_data = f'<p>{raw_tele_ad_data}</p>'
+                    response = await do_tele(title=ad_title, content=tele_ad_data)
+                    ad_data = ad_data.replace(f"{ad_link}", f"{response}")
 
             return ad_data, ad_img_list, ad_link
 
