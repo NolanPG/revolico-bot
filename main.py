@@ -15,6 +15,7 @@ API_HASH = os.getenv('API_HASH')
 TOKEN = os.getenv('TOKEN')
 NAME = os.getenv('NAME')
 URL = os.getenv('URL')
+REVOLICO_API = os.getenv('REVOLICO_API')
 
 
 # Functions
@@ -54,7 +55,7 @@ async def do_search(keyword, page: 1):
     ]
 
     async with aiohttp.ClientSession() as session:
-        async with session.post('https://api.revolico.app/graphql/', json=qjson) as response:
+        async with session.post(REVOLICO_API, json=qjson) as response:
 
             rjson = await response.json()
 
@@ -87,7 +88,7 @@ async def do_request(ad_id):
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post('https://api.revolico.app/graphql/', json=qjson) as response:
+            async with session.post(REVOLICO_API, json=qjson) as response:
 
                 rjson = await response.json()
                 ad_object = rjson[0]["data"]["ad"]
